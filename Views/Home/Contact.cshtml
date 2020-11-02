@@ -1,17 +1,299 @@
-﻿@{
-    ViewBag.Title = "Contact";
+﻿@model e4_ContactsProject.Models.Contact
+
+@{
+    ViewBag.Title = "View";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
-<h2>@ViewBag.Title.</h2>
-<h3>@ViewBag.Message</h3>
 
-<address>
-    One Microsoft Way<br />
-    Redmond, WA 98052-6399<br />
-    <abbr title="Phone">P:</abbr>
-    425.555.0100
-</address>
 
-<address>
-    <strong>Support:</strong>   <a href="mailto:Support@example.com">Support@example.com</a><br />
-    <strong>Marketing:</strong> <a href="mailto:Marketing@example.com">Marketing@example.com</a>
-</address>
+
+@section Scripts
+{
+    @Scripts.Render("~/bundles/jqueryval")
+    <script>
+
+
+        $(document).ready(function () {
+            $("#cmdSubmit").click(function (event) {
+                setID();
+                event.preventDefault();
+                if ($("form").valid()) {
+                    sendData();
+                } else {
+                    //alert("INValid");
+                }
+
+            });
+        })
+
+
+        function setNewGuid() {
+            return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c =>
+                (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+            );
+        }
+
+        function setID() {
+            $("#ContactID").val(setNewGuid());
+        }
+
+        function getData() {
+            $.ajax({
+                url: '/ContactPost/readXML',
+                type: 'GET',
+                dataType: 'json',
+                contentType: 'application/json; charset=utf-8',
+                success: function (data, textStatus, xhr) {
+                    var myJSON = JSON.stringify(data);
+
+                    generateTable(data);
+                },
+                error: function (xhr, textStatus, errorThrown) {
+                    //alert("get not success");
+                }
+            });
+        }
+
+        function UpdateData() {
+
+            $.ajax({
+                url: '/ContactPost/UpdateContact',
+                type: 'GET',
+                dataType: 'json',
+                contentType: 'application/json; charset=utf-8',
+                data: {
+                    ID: $("#ContactID").val(),
+                    title: $("#Title").val(),
+                    firstname: $("#Firstname").val(),
+                    lastname: $("#Lastname").val(),
+                    email: $("#EmailAddress").val(),
+                    gender: $("#Gender").val(),
+                    cellnumber: $("#CellNumber").val(),
+                    contactnumber: $("#ContactNumber").val(),
+                    birthdate: $("#BirthDate").val(),
+                },
+                success: function (data, textStatus, xhr) {
+                    alert("saved 2");
+                    getData();
+                },
+                error: function (xhr, textStatus, errorThrown) {
+                    getData();
+                    $("btnUpdateData").show(); $("cmdSubmit").hide();
+                }
+            });
+        }
+
+        function generateTable(data) {
+            var html = '<table class="table table-striped">';
+            html += '<tr>';
+            var flag = 0;
+            $.each(data[0], function (index, value) {
+                if (index != "ContactID") {
+                    html += '<th>' + index + '</th>';
+                }
+            });
+            html += '<th>Open</th>';
+            html += '</tr>';
+            $.each(data, function (index, value) {
+                html += '<tr>';    
+                var ItemID = "";
+                $.each(value, function (index2, value2) {
+                    if (index2 != "ContactID") {
+                        html += '<td>' + value2 + '</td>';
+                    }
+                    else {
+                        ItemID = value2;
+                    }
+                });
+                html += "<td><input onclick=\"getDetail('" + ItemID + "','" + data[0] + "')\" type='button' value='open >>' /></td>";
+                html += '<tr>';
+            });
+            html += '</table>';
+            html += '<div class="form-group"><div class="col-md-offset-2 col-md-10" style="text-align:right;"><input id="btnNewContact" onclick="NewContact()" type="button" value="Add new contact >>" class="btn btn-default"></div></div>';
+
+            $('#divContents').html(html);
+            $('#divContents').show()
+            $('#divContentsEdit').hide()
+        }
+
+        function getDetail(ItemID,jsonvalue) {
+            $("#ContactID").val(ItemID);
+            
+            $.ajax({
+                url: '/ContactPost/readXML/',
+                type: "GET", //send it through get method
+                dataType: 'json',
+                contentType: 'application/json; charset=utf-8',
+                data: {
+                    ID: ItemID
+                },
+                success: function (data, textStatus, xhr) {
+                    $.each(data[0], function (index, value) {
+                        if (index == "Title") { $("#Title").val(value); }
+                        if (index == "Firstname") { $("#Firstname").val(value); }
+                        if (index == "Lastname") { $("#Lastname").val(value); }
+                        if (index == "Gender") { $("#Gender").val(value); }
+                        if (index == "EmailAddress") { $("#EmailAddress").val(value); }
+                        if (index == "CellNumber") { $("#CellNumber").val(value); }
+                        if (index == "ContactNumber") { $("#ContactNumber").val(value); }
+                        if (index == "BirthDate") { $("#BirthDate").val(value); }
+                    });
+                    $("#btnUpdateData").show(); $("#cmdSubmit").hide();
+                },
+                error: function (xhr) {
+                    //alert("no 6");
+                }
+            });
+
+            $('#divContents').hide()
+            $('#divContentsEdit').show()
+        }
+
+        function NewContact() {
+            setID();
+            $("#Title").val(''); 
+            $("#Firstname").val(''); 
+            $("#Lastname").val(''); 
+            $("#Gender").val(''); 
+            $("#EmailAddress").val(''); 
+            $("#CellNumber").val(''); 
+            $("#ContactNumber").val(''); 
+            $("#BirthDate").val(''); 
+            $('#divContents').hide();
+            $('#divContentsEdit').show();
+            $("#btnUpdateData").hide(); $("#cmdSubmit").show();
+        }
+
+        function sendData() {
+            var form = $('#contactform')[0];
+            var dataform = new FormData(form);
+
+            $.ajax({
+                type: "POST",
+                cache: false,
+                url: '/ContactPost/Create',
+                enctype: 'multipart/form-data',
+                data: $('#contactform').serialize(),
+                success: function (data) {
+                    getData();
+                    $("btnUpdateData").hide(); $("cmdSubmit").hide();
+                },
+                error: function () {
+                    getData();
+                    $("btnUpdateData").hide(); $("cmdSubmit").hide();
+                }
+            });
+            return false;
+        }
+
+        getData();
+    </script>
+}
+
+<h2>View</h2>
+
+
+@using (Html.BeginForm(null, null, FormMethod.Post, new { id = "contactform" }))
+{
+    @Html.AntiForgeryToken()
+
+
+    
+<div class="form-horizontal" id="divContents" style="display:block;">
+    loading contacts...<br />
+ </div>
+
+        <div class="form-horizontal" id="divContentsEdit" style="display:none;">
+
+            <h4>Contact</h4>
+            <hr />
+            @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+
+
+            <div class="form-group" style="display:none;">
+                @Html.LabelFor(model => model.ContactID, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.ContactID, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.ContactID, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.Title, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.DropDownListFor(x => x.Title, e4_ContactsProject.Utils.Extensions.GetTitleList(), new { @class = "form-control" })
+                    @Html.ValidationMessageFor(model => model.Title, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+           
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.Firstname, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.Firstname, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.Firstname, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.Lastname, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.Lastname, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.Lastname, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.Gender, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.DropDownListFor(x => x.Gender, e4_ContactsProject.Utils.Extensions.GetGenderList(), new { @class = "form-control" })
+                    @Html.ValidationMessageFor(model => model.Gender, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.EmailAddress, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.EmailAddress, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.EmailAddress, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.CellNumber, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.CellNumber, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.CellNumber, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.ContactNumber, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.ContactNumber, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.ContactNumber, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.BirthDate, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.BirthDate, new { htmlAttributes = new { @class = "form-control", @type = "date" } })
+                    @Html.ValidationMessageFor(model => model.BirthDate, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-2 col-md-10">
+                    <input id="btnGetData" onclick="getData()" type="button" value="<< Data list" class="btn btn-default" />
+                    <input type="button" id="cmdSubmit" value="Save Contact >>" class="btn btn-default">
+                    <input id="btnUpdateData" onclick="UpdateData()" type="button" value="Update Contact >>" class="btn btn-default" />
+                </div>
+            </div>
+        </div>
+        <div id="#message"></div>
+
+
+
+        }
